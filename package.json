@@ -1,0 +1,14 @@
+{
+  "name": "ads-internal-test",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node sync/index.mjs",
+    "sync:dry": "node sync/index.mjs --dry-run",
+    "test": "node --test sync/*.test.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "engines": { "node": ">=20" }
+}

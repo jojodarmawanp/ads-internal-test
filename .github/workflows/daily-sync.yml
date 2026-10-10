@@ -1,0 +1,24 @@
+name: Daily ads sync
+
+on:
+  schedule:
+    - cron: '17 23 * * *'   # 06:17 WIB every day (23:17 UTC)
+  workflow_dispatch: {}      # "Run workflow" button for manual runs
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - name: Sync Meta ad accounts
+        run: npm run sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          META_API_VERSION: ${{ vars.META_API_VERSION }}
