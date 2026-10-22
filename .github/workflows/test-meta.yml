@@ -1,0 +1,21 @@
+name: Test Meta connection
+
+on:
+  workflow_dispatch: {}   # Run manually: Actions tab -> "Test Meta connection" -> Run workflow
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Read ad account from Meta (read-only)
+        run: npm run sync:dry
+        env:
+          META_TOKEN: ${{ secrets.META_TOKEN }}
+          META_AD_ACCOUNT: ${{ secrets.META_AD_ACCOUNT }}
+          META_API_VERSION: ${{ vars.META_API_VERSION }}

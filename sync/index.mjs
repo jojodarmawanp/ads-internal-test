@@ -4,24 +4,50 @@
 //   needs SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, META_API_VERSION
 //
 // Dry run (no database, just print what Meta returns):
-//   META_TOKEN=... META_AD_ACCOUNT=1234567890 META_API_VERSION=vXX.0 node sync/index.mjs --dry-run
+//   META_TOKEN=... META_AD_ACCOUNT=1234567890 node sync/index.mjs --dry-run
 
-import { createClient } from '@supabase/supabase-js';
+import { appendFileSync } from 'node:fs';
 import { fetchAccountInfo, fetchDailyInsights } from './meta.mjs';
 
-const version = process.env.META_API_VERSION;
-if (!version) throw new Error('Set META_API_VERSION, e.g. v24.0 (check the latest stable version on developers.facebook.com).');
+// Graph API v26.0 was released July 2026. Override with the META_API_VERSION variable when Meta ships a newer one.
+const version = process.env.META_API_VERSION || 'v26.0';
+
+// Writes a readable report on the GitHub Actions run page (no secrets in it).
+function summary(md) {
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + '\n');
+}
 
 async function dryRun() {
   const token = process.env.META_TOKEN;
   const accountId = (process.env.META_AD_ACCOUNT || '').replace(/^act_/, '');
   if (!token || !accountId) throw new Error('Dry run needs META_TOKEN and META_AD_ACCOUNT.');
-  const info = await fetchAccountInfo({ accountId, token, version });
+  let info;
+  try {
+    info = await fetchAccountInfo({ accountId, token, version });
+  } catch (e) {
+    summary(`## ❌ Meta connection failed\n\n**Error:** ${e.message}\n\nCheck that META_TOKEN is the full token and META_AD_ACCOUNT is the ad account number.`);
+    throw e;
+  }
   console.log('Account:', info);
   const rows = await fetchDailyInsights({ accountId, token, version });
-  console.table(rows);
-  const total = rows.reduce((t, r) => ({ spend: t.spend + r.spend, revenue: t.revenue + r.revenue }), { spend: 0, revenue: 0 });
-  console.log(`Last 7 days: spend ${total.spend} ${info.currency}, revenue ${total.revenue}, ROAS ${total.spend ? (total.revenue / total.spend).toFixed(2) : '-'}`);
+  if (rows.length) console.table(rows);
+  else console.log('No campaign data in the last 7 days (expected if no ads have run).');
+  const t = rows.reduce((a, r) => ({ spend: a.spend + r.spend, imp: a.imp + r.impressions, clicks: a.clicks + r.clicks, rev: a.rev + r.revenue }),
+    { spend: 0, imp: 0, clicks: 0, rev: 0 });
+  const fmt = (n) => n.toLocaleString('id-ID');
+  console.log(`Last 7 days: spend ${t.spend} ${info.currency}, revenue ${t.rev}, ROAS ${t.spend ? (t.rev / t.spend).toFixed(2) : '-'}`);
+  summary([
+    '## ✅ Meta connection works',
+    '',
+    `| Ad account | Currency | Time zone | API version |`,
+    `| --- | --- | --- | --- |`,
+    `| ${info.name} | ${info.currency} | ${info.timezone} | ${version} |`,
+    '',
+    '### Last 7 days',
+    rows.length
+      ? `| Campaigns | Spend | Impressions | Clicks | Revenue | ROAS |\n| --- | --- | --- | --- | --- | --- |\n| ${new Set(rows.map((r) => r.campaign_external_id)).size} | ${fmt(t.spend)} | ${fmt(t.imp)} | ${fmt(t.clicks)} | ${fmt(t.rev)} | ${t.spend ? (t.rev / t.spend).toFixed(2) : '-'} |`
+      : 'No ad activity yet. That is expected until a campaign runs; the connection itself is working.',
+  ].join('\n'));
 }
 
 async function syncAccount(db, account, token) {
@@ -69,6 +95,7 @@ async function syncAccount(db, account, token) {
 }
 
 async function main() {
+  const { createClient } = await import('@supabase/supabase-js');
   const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
   });
