@@ -1,4 +1,6 @@
-import { previewMode, currentUser, sendLoginLink, signOut, onAuthChange, loadData } from './data.js';
+import { previewMode, currentUser, sendLoginLink, signOut, onAuthChange, loadData, setBrandIndustry, listRequests, saveRequest, deleteRequest } from './data.js';
+import { renderPlan } from './plan.js';
+import { renderCreate, setCreatePrefill } from './create.js';
 import { renderStackedBars } from './chart.js';
 import { jakartaDate, dateRange, isDemo, PLATFORM_NAMES } from './shared/mock.mjs';
 
@@ -21,6 +23,7 @@ const state = {
   days: 30,
   platform: 'all',
   brandId: null,
+  view: 'overview',
   target: 3,
   sort: { key: 'spend', dir: 'desc' },
   data: null,
@@ -45,7 +48,7 @@ function index(data) {
   const brands = new Map();
   for (const a of data.accounts) {
     if (!a.brand) continue;
-    const b = brands.get(a.brand.id) ?? { id: a.brand.id, name: a.brand.name, accounts: [] };
+    const b = brands.get(a.brand.id) ?? { id: a.brand.id, name: a.brand.name, industry: a.brand.industry ?? null, accounts: [] };
     b.accounts.push(a);
     brands.set(b.id, b);
   }
@@ -147,8 +150,48 @@ const tooltip = {
   hide() { tooltip.el.hidden = true; },
 };
 
+function readHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  state.brandId = p.get('brand');
+  state.view = ['plan', 'create'].includes(p.get('view')) ? p.get('view') : 'overview';
+}
+
+function brandList(idx) {
+  // Real brands first, then demo brands, each alphabetically.
+  return [...idx.brands.values()].sort((a, b) => (a.demo - b.demo) || a.name.localeCompare(b.name))
+    .map((b) => ({ id: b.id, name: b.name, demo: b.demo, industry: b.industry, accounts: b.accounts }));
+}
+
 function render() {
   if (!state.data) return;
+  for (const a of document.querySelectorAll('.tabs a')) {
+    if (a.dataset.view === state.view) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  }
+  $('view-overview').hidden = state.view !== 'overview';
+  $('view-plan').hidden = state.view !== 'plan';
+  $('view-create').hidden = state.view !== 'create';
+  if (state.view !== 'overview') {
+    const idx = index(state.data);
+    $('crumb-agency').textContent = state.data.agencyName;
+    $('crumb-agency').classList.remove('link');
+    $('crumb-sep').hidden = true;
+    $('crumb-brand').textContent = '';
+    $('notice').hidden = !previewMode;
+    if (previewMode) $('notice').innerHTML = '<strong>Preview.</strong> Every brand here is fictional demo data. Connect Supabase to see your real ad accounts.';
+    const brands = brandList(idx);
+    if (state.view === 'plan') {
+      document.title = 'Plan budget · Ads overview';
+      renderPlan($('view-plan'), {
+        brands,
+        setIndustry: async (id, ind) => { await setBrandIndustry(id, ind); const b = idx.brands.get(id); if (b) b.industry = ind; patchIndustry(id, ind); },
+        goCreate: (p) => { setCreatePrefill(p); location.hash = 'view=create'; },
+      });
+    } else {
+      document.title = 'Create campaign · Ads overview';
+      renderCreate($('view-create'), { agencyId: state.data.agencyId, brands, listRequests, saveRequest, deleteRequest, previewMode });
+    }
+    return;
+  }
   const idx = index(state.data);
   if (state.brandId && !idx.brands.has(state.brandId)) state.brandId = null;
   const brand = state.brandId ? idx.brands.get(state.brandId) : null;
@@ -416,9 +459,10 @@ $('target').addEventListener('change', (e) => {
   render();
 });
 $('crumb-agency').addEventListener('click', () => { location.hash = ''; });
-window.addEventListener('hashchange', () => { state.brandId = new URLSearchParams(location.hash.slice(1)).get('brand'); state.sort = { key: 'spend', dir: 'desc' }; render(); });
+function patchIndustry(id, ind) { for (const a of state.data.accounts) if (a.brand?.id === id) a.brand.industry = ind; }
+window.addEventListener('hashchange', () => { readHash(); state.sort = { key: 'spend', dir: 'desc' }; render(); window.scrollTo({ top: 0 }); });
 let resizeTimer;
-window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 120); });
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (state.view === 'overview') render(); }, 120); });
 $('sign-out').addEventListener('click', async () => { await signOut(); location.hash = ''; location.reload(); });
 
 $('login-form').addEventListener('submit', async (e) => {
@@ -452,7 +496,7 @@ async function start() {
   $('app').hidden = false;
   $('user-email').textContent = previewMode ? 'Preview' : user.email;
   $('sign-out').hidden = previewMode;
-  state.brandId = new URLSearchParams(location.hash.slice(1)).get('brand');
+  readHash();
   for (const id of ['kpis', 'chart']) $(id).classList.add('loading');
   try {
     state.data = await loadData(jakartaDate(-60));

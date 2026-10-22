@@ -36,7 +36,15 @@
       </div>
     </header>
 
+    <nav class="tabs" aria-label="Sections">
+      <a href="#" data-view="overview">Performance</a>
+      <a href="#view=plan" data-view="plan">Plan budget</a>
+      <a href="#view=create" data-view="create">Create campaign</a>
+    </nav>
+
     <div id="notice" class="notice" hidden></div>
+
+    <div id="view-overview">
 
     <section class="filters" aria-label="Filters">
       <div class="seg" role="radiogroup" aria-label="Date range" id="range">
@@ -81,6 +89,10 @@
     </section>
 
     <footer class="foot muted small" id="foot"></footer>
+    </div>
+
+    <div id="view-plan" hidden></div>
+    <div id="view-create" hidden></div>
   </div>
 
   <div id="tooltip" class="tooltip" role="tooltip" hidden></div>

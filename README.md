@@ -77,3 +77,27 @@ Run it again with `remove` to delete them; real accounts are never touched.
 | `demo_*` ids | `shared/mock.mjs` (fictional data) |
 | Meta | `sync/meta.mjs` (Marketing API) |
 | TikTok, Shopee | Not built yet: needs platform API approval |
+
+## Plan budget and Create campaign (Phase 2a)
+
+**Plan budget** (`web/plan.js`, `shared/benchmarks.mjs`): pick an industry and monthly budget, get a
+recommended split across TikTok, Shopee and Meta with likely and realistic-range clicks, orders, sales
+and ROAS, plus industry advice and ad-policy warnings. Every figure in `shared/benchmarks.mjs` names its
+source or is marked as an assumption. Replace the assumptions with real client data over time.
+
+**Create campaign** (`web/create.js`, `web/publish.js`): build a Meta campaign (goal, budget, dates,
+audience, placements, ad text), see a live estimate, save drafts, review exactly what would be sent to
+Meta, and publish. Publishing currently uses the **dummy connector**: same steps and IDs as Meta's API,
+but no real ad is created. Everything is created as **PAUSED**.
+
+Needs one database update: run `supabase/migrations/0002_campaign_builder.sql` in the Supabase SQL Editor.
+
+Next step for live publishing: a small server endpoint (Cloudflare Worker) that holds the Meta token and
+sends the same payload to Meta's Marketing API, still as PAUSED.
+
+## Tests
+
+```bash
+npm test          # connectors, demo data, simulator, publishing rules
+npm run test:db   # applies all migrations to an in-memory Postgres and checks access rules
+```

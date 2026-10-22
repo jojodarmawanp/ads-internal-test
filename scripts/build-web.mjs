@@ -20,7 +20,7 @@ if (url && !/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url)) {
 
 rmSync('dist', { recursive: true, force: true });
 mkdirSync('dist/shared', { recursive: true });
-cpSync('web', 'dist', { recursive: true });
-cpSync('shared/mock.mjs', 'dist/shared/mock.mjs');
+cpSync('web', 'dist', { recursive: true, filter: (src) => !src.endsWith('.test.mjs') });
+cpSync('shared', 'dist/shared', { recursive: true, filter: (src) => !src.endsWith('.test.mjs') });
 writeFileSync('dist/config.js', `export default ${JSON.stringify({ supabaseUrl: url, supabaseAnonKey: key }, null, 2)};\n`);
 console.log(url ? `Built dist/ connected to ${url}` : 'Built dist/ in PREVIEW mode (demo data only)');

@@ -77,3 +77,10 @@ Security rules:
 - [ ] Jonathan: create Supabase project, share URL (keys go into GitHub Secrets, never chat)
 - [ ] Decide Meta Graph API version at build time (latest stable)
 - [ ] Later: PT/CV for Meta Business Verification before connecting other brands
+
+## Phase 2a (added 2026-10-22)
+
+- **Plan budget:** industry advice + cost simulation across Meta, TikTok, Shopee. Ranges, never promises; sources listed in the app.
+- **Create campaign (Meta):** form → estimate → draft → review → publish as PAUSED. Dummy connector until Meta write access is wired server-side.
+- Industries in v1: beauty, fashion, food, automotive, health, electronics, home.
+- Open: replace assumption figures (Shopee cost per click, order values, ROAS spread) with real client data.

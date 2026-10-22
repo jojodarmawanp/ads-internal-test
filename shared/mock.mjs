@@ -9,7 +9,7 @@ export const DEMO_PREFIX = 'demo_';
 // cpm = cost per 1,000 impressions, ctr = click-through rate.
 export const DEMO_BRANDS = [
   {
-    slug: 'kopi-senja', name: 'Kopi Senja',
+    slug: 'kopi-senja', name: 'Kopi Senja', industry: 'food',
     accounts: {
       shopee: [
         { id: 'c1', name: 'Iklan Pencarian – kopi susu literan', spend: 180000, roas: 6.2, cpm: 9000, ctr: 0.034, aov: 85000 },
@@ -23,7 +23,7 @@ export const DEMO_BRANDS = [
     },
   },
   {
-    slug: 'glowra', name: 'Glowra Skincare',
+    slug: 'glowra', name: 'Glowra Skincare', industry: 'beauty',
     accounts: {
       tiktok: [
         { id: 'c1', name: 'GMV Max – Product (serum best seller)', spend: 650000, roas: 4.4, cpm: 18000, ctr: 0.016, aov: 140000 },
@@ -41,7 +41,7 @@ export const DEMO_BRANDS = [
     },
   },
   {
-    slug: 'batik-ayu', name: 'Batik Ayu',
+    slug: 'batik-ayu', name: 'Batik Ayu', industry: 'fashion',
     accounts: {
       meta: [
         { id: 'c1', name: 'Sales – Interest fashion wanita', spend: 260000, roas: 1.4, cpm: 33000, ctr: 0.009, aov: 320000 },
@@ -53,7 +53,7 @@ export const DEMO_BRANDS = [
     },
   },
   {
-    slug: 'snackit', name: 'Snackit',
+    slug: 'snackit', name: 'Snackit', industry: 'food',
     accounts: {
       shopee: [
         { id: 'c1', name: 'Iklan Pencarian – keripik pedas', spend: 140000, roas: 5.8, cpm: 8500, ctr: 0.036, aov: 55000 },

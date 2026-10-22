@@ -47,6 +47,8 @@ const lines = [];
 for (const a of demoAccounts()) {
   let brand = must(await db.from('brands').select('id').eq('agency_id', agency.id).eq('name', a.brand_name).limit(1))[0];
   if (!brand) brand = must(await db.from('brands').insert({ agency_id: agency.id, name: a.brand_name }).select('id').single());
+  const industry = DEMO_BRANDS.find((b) => b.slug === a.brand_slug)?.industry;
+  if (industry) await db.from('brands').update({ industry }).eq('id', brand.id); // ignored if 0002 is not applied yet
   const account = must(await db.from('ad_accounts')
     .upsert({ brand_id: brand.id, platform: a.platform, external_id: a.external_id, name: a.name, currency: 'IDR', timezone: 'Asia/Jakarta', is_active: true },
       { onConflict: 'platform,external_id' })
