@@ -1,0 +1,8 @@
+// Cloudflare Workers config: serves the built dashboard (dist/) as static files.
+// Build command:  node scripts/build-web.mjs
+// Deploy command: npx wrangler deploy
+{
+  "name": "ads-internal-test",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./dist" }
+}
