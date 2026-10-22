@@ -8,9 +8,7 @@
 
 import { appendFileSync } from 'node:fs';
 import { fetchAccountInfo, fetchDailyInsights } from './meta.mjs';
-
-// Graph API v26.0 was released July 2026. Override with the META_API_VERSION variable when Meta ships a newer one.
-const version = process.env.META_API_VERSION || 'v26.0';
+import { syncAccount, META_VERSION as version } from './core.mjs';
 
 // Writes a readable report on the GitHub Actions run page (no secrets in it).
 function summary(md) {
@@ -50,78 +48,34 @@ async function dryRun() {
   ].join('\n'));
 }
 
-async function syncAccount(db, account, token) {
-  const accountId = account.external_id.replace(/^act_/, '');
-  const info = await fetchAccountInfo({ accountId, token, version });
-  const rows = await fetchDailyInsights({ accountId, token, version });
-
-  // Upsert campaigns, then map external id -> our id
-  const campaigns = [...new Map(rows.map((r) => [r.campaign_external_id, r])).values()].map((r) => ({
-    ad_account_id: account.id,
-    external_id: r.campaign_external_id,
-    name: r.campaign_name,
-    updated_at: new Date().toISOString(),
-  }));
-  const idByExternal = new Map();
-  if (campaigns.length) {
-    const { data, error } = await db.from('campaigns')
-      .upsert(campaigns, { onConflict: 'ad_account_id,external_id' })
-      .select('id, external_id');
-    if (error) throw error;
-    data.forEach((c) => idByExternal.set(c.external_id, c.id));
-  }
-
-  const metrics = rows.map((r) => ({
-    campaign_id: idByExternal.get(r.campaign_external_id),
-    date: r.date,
-    spend: r.spend,
-    impressions: r.impressions,
-    clicks: r.clicks,
-    purchases: r.purchases,
-    revenue: r.revenue,
-    synced_at: new Date().toISOString(),
-  }));
-  if (metrics.length) {
-    const { error } = await db.from('daily_metrics').upsert(metrics, { onConflict: 'campaign_id,date' });
-    if (error) throw error;
-  }
-
-  await db.from('ad_accounts').update({
-    name: info.name, currency: info.currency, timezone: info.timezone,
-    last_synced_at: new Date().toISOString(), last_sync_error: null,
-  }).eq('id', account.id);
-
-  return metrics.length;
-}
-
 async function main() {
   const { adminClient } = await import('./supabase.mjs');
   const db = adminClient();
 
   const { data: run } = await db.from('sync_runs').insert({}).select('id').single();
   const { data: accounts, error } = await db.from('ad_accounts')
-    .select('id, external_id, connections(access_token)')
-    .eq('platform', 'meta').eq('is_active', true);
+    .select('id, platform, external_id, connections(access_token)')
+    .eq('is_active', true);
   if (error) throw error;
 
   if (!accounts.length) {
-    console.log('No active Meta ad accounts yet. Run the "Setup: connect Meta account" workflow first.');
-    summary('## ⚠️ Nothing to sync\n\nNo Meta ad accounts are connected yet. Run the **Setup: connect Meta account** workflow first.');
+    console.log('No active ad accounts yet. Run the "Setup: connect Meta account" workflow first.');
+    summary('## ⚠️ Nothing to sync\n\nNo ad accounts are connected yet. Run the **Setup: connect Meta account** workflow first.');
   }
 
   let ok = 0, failed = 0;
   const lines = [];
   for (const account of accounts) {
     const token = account.connections?.access_token;
+    const label = (a) => (a.external_id.startsWith('demo_') ? `${a.external_id} (demo)` : `${a.platform} ad account`);
     try {
-      if (!token) throw new Error('No access token saved for this ad account.');
-      const n = await syncAccount(db, account, token);
-      console.log(`OK   ${account.external_id}: ${n} rows`);
-      lines.push(`| ${account.external_id} | ✅ | ${n} daily rows saved |`);
+      const { rows: n, connector } = await syncAccount(db, account, { token });
+      console.log(`OK   ${account.external_id}: ${n} rows (${connector})`);
+      lines.push(`| ${label(account)} | ✅ | ${n} daily rows saved |`);
       ok++;
     } catch (e) {
       console.error(`FAIL ${account.external_id}: ${e.message}`);
-      lines.push(`| ${account.external_id} | ❌ | ${e.message} |`);
+      lines.push(`| ${label(account)} | ❌ | ${e.message} |`);
       await db.from('ad_accounts').update({ last_sync_error: e.message }).eq('id', account.id);
       failed++;
     }

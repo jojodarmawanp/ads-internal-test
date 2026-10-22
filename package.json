@@ -5,10 +5,14 @@
   "scripts": {
     "sync": "node sync/index.mjs",
     "sync:dry": "node sync/index.mjs --dry-run",
-    "test": "node --test sync/*.test.mjs"
+    "test": "node --test sync/*.test.mjs shared/*.test.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "preview": "node scripts/build-web.mjs && npx --yes serve dist -l 4173"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

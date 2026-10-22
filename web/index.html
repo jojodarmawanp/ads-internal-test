@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ads overview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <!-- Login -->
+  <main id="login" class="login" hidden>
+    <form id="login-form" class="login-box">
+      <h1>Ads overview</h1>
+      <p class="muted">Sign in with the email your agency owner registered. We'll send you a one-time login link.</p>
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="email" required placeholder="you@company.com">
+      <button type="submit" class="btn-primary">Send login link</button>
+      <p id="login-msg" class="login-msg" role="status"></p>
+    </form>
+  </main>
+
+  <!-- App -->
+  <div id="app" hidden>
+    <header class="topbar">
+      <div class="crumbs">
+        <button id="crumb-agency" class="crumb" type="button"></button>
+        <span id="crumb-sep" class="crumb-sep" hidden>/</span>
+        <span id="crumb-brand" class="crumb-current"></span>
+      </div>
+      <div class="account">
+        <span id="user-email" class="muted"></span>
+        <button id="sign-out" type="button" class="btn-ghost">Sign out</button>
+      </div>
+    </header>
+
+    <div id="notice" class="notice" hidden></div>
+
+    <section class="filters" aria-label="Filters">
+      <div class="seg" role="radiogroup" aria-label="Date range" id="range">
+        <button type="button" role="radio" data-days="7">7 days</button>
+        <button type="button" role="radio" data-days="14">14 days</button>
+        <button type="button" role="radio" data-days="30">30 days</button>
+      </div>
+      <div class="seg" role="radiogroup" aria-label="Platform" id="platform">
+        <button type="button" role="radio" data-platform="all">All</button>
+        <button type="button" role="radio" data-platform="meta"><i class="key key-meta"></i>Meta</button>
+        <button type="button" role="radio" data-platform="tiktok"><i class="key key-tiktok"></i>TikTok</button>
+        <button type="button" role="radio" data-platform="shopee"><i class="key key-shopee"></i>Shopee</button>
+      </div>
+      <label class="target">Target ROAS
+        <input id="target" type="number" min="0.5" max="20" step="0.5" inputmode="decimal">
+      </label>
+    </section>
+
+    <section class="hero" aria-live="polite">
+      <p id="headline" class="headline"></p>
+      <p id="subline" class="subline"></p>
+    </section>
+
+    <section id="kpis" class="kpis" aria-label="Totals for the selected period"></section>
+
+    <section class="block" aria-labelledby="chart-title">
+      <div class="block-head">
+        <h2 id="chart-title">Spend per day</h2>
+        <div id="legend" class="legend"></div>
+      </div>
+      <div id="chart" class="chart"></div>
+    </section>
+
+    <section class="block" aria-labelledby="table-title">
+      <div class="block-head">
+        <h2 id="table-title"></h2>
+        <p id="table-note" class="muted small"></p>
+      </div>
+      <div class="table-wrap">
+        <table id="table"></table>
+      </div>
+    </section>
+
+    <footer class="foot muted small" id="foot"></footer>
+  </div>
+
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

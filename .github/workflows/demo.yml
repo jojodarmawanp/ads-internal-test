@@ -1,0 +1,30 @@
+name: "Demo data: load or remove"
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner_email:
+        description: Agency owner email (same as in Setup)
+        required: true
+      action:
+        description: Load demo brands or remove them
+        type: choice
+        options: [load, remove]
+        default: load
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: node sync/demo.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OWNER_EMAIL: ${{ inputs.owner_email }}
+          DEMO_ACTION: ${{ inputs.action }}

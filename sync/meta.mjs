@@ -37,12 +37,13 @@ export async function fetchAccountInfo({ accountId, token, version }) {
   return { name: body.name, currency: body.currency, timezone: body.timezone_name };
 }
 
-// Last 7 complete days in the ad account's own time zone (Meta handles the time zone).
-export async function fetchDailyInsights({ accountId, token, version, datePreset = 'last_7d' }) {
+// Default: last 7 complete days in the ad account's own time zone. Pass since/until (YYYY-MM-DD) for a custom range.
+export async function fetchDailyInsights({ accountId, token, version, datePreset = 'last_7d', since, until }) {
   const url = new URL(`https://graph.facebook.com/${version}/act_${accountId}/insights`);
   url.searchParams.set('level', 'campaign');
   url.searchParams.set('time_increment', '1');
-  url.searchParams.set('date_preset', datePreset);
+  if (since && until) url.searchParams.set('time_range', JSON.stringify({ since, until }));
+  else url.searchParams.set('date_preset', datePreset);
   url.searchParams.set('fields', 'campaign_id,campaign_name,spend,impressions,inline_link_clicks,actions,action_values');
   url.searchParams.set('limit', '500');
   url.searchParams.set('access_token', token);
