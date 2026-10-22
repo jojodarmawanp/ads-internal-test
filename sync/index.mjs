@@ -106,16 +106,24 @@ async function main() {
     .eq('platform', 'meta').eq('is_active', true);
   if (error) throw error;
 
+  if (!accounts.length) {
+    console.log('No active Meta ad accounts yet. Run the "Setup: connect Meta account" workflow first.');
+    summary('## ⚠️ Nothing to sync\n\nNo Meta ad accounts are connected yet. Run the **Setup: connect Meta account** workflow first.');
+  }
+
   let ok = 0, failed = 0;
+  const lines = [];
   for (const account of accounts) {
     const token = account.connections?.access_token;
     try {
       if (!token) throw new Error('No access token saved for this ad account.');
       const n = await syncAccount(db, account, token);
       console.log(`OK   ${account.external_id}: ${n} rows`);
+      lines.push(`| ${account.external_id} | ✅ | ${n} daily rows saved |`);
       ok++;
     } catch (e) {
       console.error(`FAIL ${account.external_id}: ${e.message}`);
+      lines.push(`| ${account.external_id} | ❌ | ${e.message} |`);
       await db.from('ad_accounts').update({ last_sync_error: e.message }).eq('id', account.id);
       failed++;
     }
@@ -125,6 +133,10 @@ async function main() {
     finished_at: new Date().toISOString(), accounts_ok: ok, accounts_failed: failed,
   }).eq('id', run.id);
   console.log(`Done: ${ok} ok, ${failed} failed`);
+  if (lines.length) {
+    summary([`## Daily sync: ${ok} ok, ${failed} failed`, '', '| Ad account | Status | Detail |', '| --- | --- | --- |', ...lines,
+      '', ok && lines.every((l) => l.includes(' 0 daily rows')) ? '_0 rows is expected until a campaign has run._' : ''].join('\n'));
+  }
   if (failed && !ok) process.exit(1);
 }
 

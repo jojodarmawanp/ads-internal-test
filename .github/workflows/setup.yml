@@ -1,0 +1,34 @@
+name: "Setup: connect Meta account"
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner_email:
+        description: Your login email for the dashboard
+        required: true
+      agency_name:
+        description: Agency name
+        default: My Agency
+      brand_name:
+        description: Brand name for this ad account
+        default: Testing Page
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: node sync/setup.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          META_TOKEN: ${{ secrets.META_TOKEN }}
+          META_AD_ACCOUNT: ${{ secrets.META_AD_ACCOUNT }}
+          OWNER_EMAIL: ${{ inputs.owner_email }}
+          AGENCY_NAME: ${{ inputs.agency_name }}
+          BRAND_NAME: ${{ inputs.brand_name }}

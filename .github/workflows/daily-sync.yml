@@ -1,9 +1,8 @@
 name: Daily ads sync
 
 on:
-  # Schedule is off until Supabase is set up. To turn on, remove the # on the next two lines.
-  # schedule:
-  #   - cron: '17 23 * * *'   # 06:17 WIB every day (23:17 UTC)
+  schedule:
+    - cron: '17 23 * * *'   # 06:17 WIB every day (23:17 UTC)
   workflow_dispatch: {}      # "Run workflow" button for manual runs
 
 jobs:
