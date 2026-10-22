@@ -95,10 +95,8 @@ async function syncAccount(db, account, token) {
 }
 
 async function main() {
-  const { createClient } = await import('@supabase/supabase-js');
-  const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  });
+  const { adminClient } = await import('./supabase.mjs');
+  const db = adminClient();
 
   const { data: run } = await db.from('sync_runs').insert({}).select('id').single();
   const { data: accounts, error } = await db.from('ad_accounts')

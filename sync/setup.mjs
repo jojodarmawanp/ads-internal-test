@@ -5,7 +5,7 @@
 // Optional: AGENCY_NAME, BRAND_NAME
 
 import { appendFileSync } from 'node:fs';
-import { createClient } from '@supabase/supabase-js';
+import { adminClient } from './supabase.mjs';
 
 const need = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'META_TOKEN', 'META_AD_ACCOUNT', 'OWNER_EMAIL'];
 const missing = need.filter((k) => !process.env[k]);
@@ -16,11 +16,13 @@ const brandName = process.env.BRAND_NAME || 'Testing Page';
 const email = process.env.OWNER_EMAIL.trim().toLowerCase();
 const adAccount = process.env.META_AD_ACCOUNT.replace(/^act_/, '').trim();
 
-const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+const db = adminClient();
 
-const must = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
+const must = ({ data, error }) => {
+  if (!error) return data;
+  const msg = String(error.message ?? error);
+  throw new Error(msg.startsWith('<') ? 'Supabase returned a web page instead of data. Check that SUPABASE_URL is https://your-project-id.supabase.co' : msg);
+};
 
 async function findOrCreate(table, match, values = match) {
   let q = db.from(table).select('id');
