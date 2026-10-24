@@ -128,7 +128,8 @@ function graph(env, token, fetchImpl) {
     const body = await r.json().catch(() => ({}));
     if (!r.ok || body.error) {
       const e = body.error ?? {};
-      throw new Error(e.error_user_msg || e.error_user_title || e.message || `HTTP ${r.status}`);
+      const ref = [e.code && `code ${e.code}`, e.error_subcode && `subcode ${e.error_subcode}`, e.fbtrace_id && `trace ${e.fbtrace_id}`].filter(Boolean).join(', ');
+      throw new Error(`${e.error_user_msg || e.error_user_title || e.message || `HTTP ${r.status}`}${ref ? ` (${ref})` : ''}`);
     }
     return body;
   };
