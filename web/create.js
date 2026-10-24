@@ -1,6 +1,6 @@
 // "Create campaign" view: build a Meta campaign, see its estimate, save as draft, publish (dummy connector for now).
 import { INDUSTRIES, simulatePlatform } from './shared/benchmarks.mjs';
-import { GOALS, metaPayload, publishDummy, validate } from './publish.js';
+import { GOALS, LIVE_GOALS, metaPayload, publishDummy, validate } from './publish.js';
 import { el, rp, rpFull, count, dateLabel, parseRupiah } from './format.js';
 import { jakartaDate, isDemo } from './shared/mock.mjs';
 
@@ -135,6 +135,8 @@ export async function renderCreate(root, ctx) {
   countText();
   const headIn = el('input', { id: 'c-head', value: s.headline, maxlength: 80, autocomplete: 'off' });
   headIn.addEventListener('input', () => { s.headline = headIn.value; });
+  const imgIn = el('input', { id: 'c-img', value: s.imageUrl ?? '', type: 'url', placeholder: 'https://…/photo.jpg', autocomplete: 'off' });
+  imgIn.addEventListener('input', () => { s.imageUrl = imgIn.value.trim(); });
   const destWrap = el('div');
   function render1() {
     destWrap.replaceChildren();
@@ -187,6 +189,7 @@ export async function renderCreate(root, ctx) {
     section('The ad',
       field('Main text', textIn, textCount, errSlot('primaryText')),
       field('Headline (optional)', headIn),
+      field('Image link (optional)', imgIn, el('p', { class: 'hint', text: 'A public https link to a product photo. If empty, Meta tries to use the image from your web page.' }), errSlot('imageUrl')),
       destWrap),
     el('div', { class: 'actions' }, publishBtn, saveBtn, newBtn),
     formMsg,
@@ -240,17 +243,40 @@ export async function renderCreate(root, ctx) {
 
   // ---------- review + publish dialog ----------
   function openReview() {
-    const payload = metaPayload(draft);
+    const acc = metaAccount();
+    const realAccount = acc && !isDemo(acc.external_id);
+    const liveOk = !ctx.previewMode && realAccount && LIVE_GOALS.includes(draft.objective);
+    const liveWhyNot = ctx.previewMode ? 'Not available in preview.'
+      : !acc ? 'This brand has no Meta ad account connected.'
+        : !realAccount ? 'Demo brands can only publish in test mode.'
+          : !LIVE_GOALS.includes(draft.objective) ? 'Real publishing supports Website visits and Sales for now.' : '';
+    let mode = 'test';
+
     const dlg = el('dialog', { class: 'review', 'aria-labelledby': 'review-title' });
     const est = estimate();
-    const confirmBtn = el('button', { type: 'button', class: 'btn-primary', text: 'Publish as paused' });
+    const confirmBtn = el('button', { type: 'button', class: 'btn-primary' });
     const cancelBtn = el('button', { type: 'button', class: 'btn-ghost', text: 'Back to editing', onclick: () => dlg.close() });
     const msg = el('p', { class: 'form-msg', role: 'status' });
+    const note = el('p', { class: 'connector-note' });
+    const modeBox = el('fieldset', { class: 'field mode' }, el('legend', { text: 'Publish to' }),
+      ...[['test', 'Test mode', 'Simulated. Nothing is sent to Meta.'], ['live', 'Meta, as paused', liveOk ? 'Creates the real campaign in Ads Manager, switched off.' : liveWhyNot]].map(([v, label, help]) => {
+        const input = el('input', { type: 'radio', name: 'mode', value: v, id: `mode-${v}`, checked: v === 'test', disabled: v === 'live' && !liveOk });
+        input.addEventListener('change', () => { mode = v; syncMode(); });
+        return el('label', { class: 'goal' + (v === 'live' && !liveOk ? ' disabled' : ''), for: `mode-${v}` }, input, el('span', { class: 'goal-name', text: label }), el('span', { class: 'goal-help', text: help }));
+      }));
+    function syncMode() {
+      confirmBtn.textContent = mode === 'live' ? 'Publish to Meta as paused' : 'Publish in test mode';
+      note.textContent = mode === 'live'
+        ? 'The campaign is created on your real Meta ad account, switched off. Nothing is shown to anyone or charged until you switch it on in Ads Manager.'
+        : 'Test mode: simulated Meta connection. No real ad is created.';
+    }
+    syncMode();
+
     dlg.append(
       el('h2', { id: 'review-title', text: 'Review before publishing' }),
       el('dl', { class: 'summary' },
         ...pair('Brand', brandOf()?.name),
-        ...pair('Ad account', metaAccount() ? (isDemo(metaAccount().external_id) ? `${metaAccount().name} (demo)` : 'Meta ad account') : 'None connected'),
+        ...pair('Ad account', acc ? (isDemo(acc.external_id) ? `${acc.name} (demo)` : acc.name ?? 'Meta ad account') : 'None connected'),
         ...pair('Goal', GOALS[draft.objective].label),
         ...pair('Budget', `${rpFull(draft.daily_budget)} a day${est ? `, about ${rpFull(draft.daily_budget * est.days)} in total` : ''}`),
         ...pair('Dates', `${dateLabel(draft.start_date)}${draft.end_date ? ` to ${dateLabel(draft.end_date)}` : ', no end date'}`),
@@ -258,23 +284,32 @@ export async function renderCreate(root, ctx) {
         ...pair('Shows on', draft.settings.placements.map((p) => p[0].toUpperCase() + p.slice(1)).join(' and ')),
         ...pair('Status after publishing', 'Paused: switch it on in Meta Ads Manager when ready'),
       ),
-      el('details', {}, el('summary', { text: 'What will be sent to Meta' }), el('pre', { text: JSON.stringify(payload, null, 2) })),
-      el('p', { class: 'connector-note', text: 'Test mode: this uses the simulated Meta connection. No real ad is created.' }),
+      modeBox,
+      el('details', {}, el('summary', { text: 'What will be sent to Meta' }), el('pre', { text: JSON.stringify(metaPayload(draft), null, 2) })),
+      note,
       el('div', { class: 'actions' }, confirmBtn, cancelBtn), msg,
     );
     confirmBtn.addEventListener('click', async () => {
       confirmBtn.disabled = true; cancelBtn.disabled = true;
-      msg.textContent = 'Publishing to Meta (simulated)…';
       try {
-        const result = await publishDummy(draft);
-        await persist('published', 'Published as paused (test mode).', { publish_mode: result.publish_mode, external_ids: result.external_ids, error: null });
+        if (mode === 'live') {
+          msg.textContent = 'Creating the campaign on Meta… this takes a few seconds.';
+          const saved = await persist('draft', 'Saved.');
+          await ctx.publishLive(saved.id);
+          flash = `"${draft.name}" was created on Meta as paused. Open it from the list below to check it in Ads Manager.`;
+        } else {
+          msg.textContent = 'Publishing (test mode)…';
+          const result = await publishDummy(draft);
+          await persist('published', 'Published as paused (test mode).', { publish_mode: result.publish_mode, external_ids: result.external_ids, error: null });
+          flash = `"${draft.name}" was published as paused (test mode). It is listed under Campaigns created here.`;
+        }
         dlg.close();
-        flash = `"${draft.name}" was published as paused (test mode). It is listed under Campaigns created here.`;
         draft = null;
         renderCreate(root, ctx);
       } catch (err) {
-        msg.textContent = `Publishing failed: ${err.message}`;
+        msg.textContent = err.message;
         confirmBtn.disabled = false; cancelBtn.disabled = false;
+        renderList();
       }
     });
     dlg.addEventListener('close', () => dlg.remove());
@@ -344,21 +379,25 @@ export async function renderCreate(root, ctx) {
       const brand = ctx.brands.find((b) => b.id === r.brand_id);
       const statusEl = r.status === 'published'
         ? el('span', { class: 'pill pill-ok', text: r.publish_mode === 'dummy' ? 'Published, paused (test)' : 'Published, paused' })
-        : r.status === 'failed' ? el('span', { class: 'pill pill-err', text: 'Failed', title: r.error ?? '' })
+        : r.status === 'failed' ? el('span', { class: 'pill pill-err', text: 'Failed' })
           : el('span', { class: 'pill', text: 'Draft' });
       const actions = el('td', { class: 'left actions-cell' });
-      if (r.status === 'draft') {
+      if (r.status === 'draft' || r.status === 'failed') {
         actions.append(
           el('button', { type: 'button', class: 'btn-link', text: 'Edit', onclick: () => { draft = { ...structuredClone(r), daily_budget: Number(r.daily_budget) }; renderCreate(root, ctx); window.scrollTo({ top: 0 }); } }),
-          el('button', { type: 'button', class: 'btn-link danger', text: 'Delete', onclick: async () => {
+          r.status === 'draft' && el('button', { type: 'button', class: 'btn-link danger', text: 'Delete', onclick: async () => {
             if (!confirm(`Delete the draft "${r.name}"?`)) return;
             try { await ctx.deleteRequest(r.id); renderList(); } catch (err) { formMsg.textContent = err.message; }
           } }));
+      } else if (r.external_ids?.ads_manager_url) {
+        actions.append(el('a', { href: r.external_ids.ads_manager_url, target: '_blank', rel: 'noopener', class: 'btn-link', text: 'Open in Ads Manager' }));
       } else if (r.external_ids?.campaign_id) {
-        actions.append(el('span', { class: 'muted small', text: `Meta ID ${r.external_ids.campaign_id}` }));
+        actions.append(el('span', { class: 'muted small', text: `Test ID ${r.external_ids.campaign_id}` }));
       }
+      const nameCell = el('td', { class: 'left cmp-name', text: r.name });
+      if (r.status === 'failed' && r.error) nameCell.append(el('div', { class: 'err small', text: `Meta said: ${r.error}` }));
       body.append(el('tr', {},
-        el('td', { class: 'left cmp-name', text: r.name }),
+        nameCell,
         el('td', { class: 'left', text: brand?.name ?? '–' }),
         el('td', { class: 'left', text: GOALS[r.objective]?.label ?? r.objective }),
         el('td', { text: rpFull(Number(r.daily_budget)) }),
@@ -367,7 +406,7 @@ export async function renderCreate(root, ctx) {
         actions));
     }
     table.append(body);
-    list.append(el('div', { class: 'table-wrap' }, table));
+    list.append(el('div', { class: 'table-wrap created' }, table));
   }
 
   refreshSide();

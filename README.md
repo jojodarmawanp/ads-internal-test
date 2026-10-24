@@ -92,8 +92,15 @@ but no real ad is created. Everything is created as **PAUSED**.
 
 Needs one database update: run `supabase/migrations/0002_campaign_builder.sql` in the Supabase SQL Editor.
 
-Next step for live publishing: a small server endpoint (Cloudflare Worker) that holds the Meta token and
-sends the same payload to Meta's Marketing API, still as PAUSED.
+**Real publishing (paused):** `worker/index.mjs` runs on Cloudflare next to the dashboard. `POST /api/publish`
+checks the user's login and agency membership, reads the Meta token from Supabase with the secret key,
+and creates campaign → ad set → creative → ad on Meta, all **PAUSED**. If any step fails, the campaign is
+deleted on Meta and the error is saved on the request. Supports **Website visits** (and **Sales** when the ad
+account has a Meta Pixel). Leads and WhatsApp stay test-only for now.
+
+Cloudflare Worker secrets (Settings → Variables and Secrets, type Secret):
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `META_PAGE_ID`. The Meta system user also needs the Page
+assigned (Business Settings → System users → Assign assets → Pages).
 
 ## Tests
 

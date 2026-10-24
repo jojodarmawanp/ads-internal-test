@@ -5,7 +5,7 @@
   "scripts": {
     "sync": "node sync/index.mjs",
     "sync:dry": "node sync/index.mjs --dry-run",
-    "test": "node --test sync/*.test.mjs shared/*.test.mjs web/*.test.mjs",
+    "test": "node --test sync/*.test.mjs shared/*.test.mjs web/*.test.mjs worker/*.test.mjs",
     "build:web": "node scripts/build-web.mjs",
     "preview": "node scripts/build-web.mjs && npx --yes serve dist -l 4173",
     "test:db": "node supabase/test-access.mjs"

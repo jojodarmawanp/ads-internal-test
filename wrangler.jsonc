@@ -1,8 +1,11 @@
-// Cloudflare Workers config: serves the built dashboard (dist/) as static files.
+// Cloudflare Worker: serves the dashboard (dist/) and the /api/publish endpoint (worker/index.mjs).
 // Build command:  node scripts/build-web.mjs
 // Deploy command: npx wrangler deploy
+// Secrets (dashboard -> Settings -> Variables and Secrets): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, META_PAGE_ID
 {
-  "name": "ads-internal-test",
+  "name": "ads-internal-test-1",
+  "main": "worker/index.mjs",
   "compatibility_date": "2026-10-01",
-  "assets": { "directory": "./dist" }
+  "assets": { "directory": "./dist", "binding": "ASSETS" },
+  "keep_vars": true
 }

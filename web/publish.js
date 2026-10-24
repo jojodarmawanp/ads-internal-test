@@ -11,52 +11,66 @@ const OBJECTIVES = {
 export const GOALS = OBJECTIVES;
 
 const jakartaMidnight = (date) => (date ? `${date}T00:00:00+0700` : undefined);
+const clean = (o) => JSON.parse(JSON.stringify(o)); // drops undefined fields
 
-// The three objects Meta needs (campaign -> ad set -> ad), exactly as they would be sent. Everything starts PAUSED.
-export function metaPayload(req) {
+// Goals the live Meta connector can publish today. Leads and WhatsApp need a lead form or a
+// WhatsApp number linked to the Page, which comes later.
+export const LIVE_GOALS = ['traffic', 'sales'];
+
+// The four objects Meta needs (campaign -> ad set -> creative -> ad), in Graph API field names.
+// ctx fills in what only the server knows: pageId, pixelId, cityKeys ({ name: key }).
+// Everything is created PAUSED, so nothing runs or spends until switched on in Ads Manager.
+export function metaPayload(req, ctx = {}) {
   const s = req.settings ?? {};
   const o = OBJECTIVES[req.objective];
-  // Live publishing must swap city names for Meta city keys (Targeting Search API) before sending.
   const geo = s.cities?.length
-    ? { cities: s.cities.map((name) => ({ name, radius: 25, distance_unit: 'kilometer' })) }
+    ? { cities: s.cities.map((name) => ({ key: ctx.cityKeys?.[name] ?? `<city key for ${name}>`, radius: 25, distance_unit: 'kilometer' })) }
     : { countries: ['ID'] };
-  return {
+  const link = s.url;
+  return clean({
     campaign: {
       name: req.name,
       objective: o.meta,
       status: 'PAUSED',
-      buying_type: 'AUCTION',
       special_ad_categories: [],
       is_adset_budget_sharing_enabled: false,
     },
     adset: {
       name: `${req.name} – ad set`,
-      daily_budget: Math.round(req.daily_budget),
+      daily_budget: Math.round(Number(req.daily_budget)),
       billing_event: 'IMPRESSIONS',
       optimization_goal: o.optimization,
       bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
       start_time: jakartaMidnight(req.start_date),
       end_time: req.end_date ? `${req.end_date}T23:59:59+0700` : undefined,
       destination_type: req.objective === 'whatsapp' ? 'WHATSAPP' : undefined,
+      promoted_object: req.objective === 'sales' ? { pixel_id: ctx.pixelId ?? '<your Meta Pixel>', custom_event_type: 'PURCHASE' } : undefined,
       targeting: {
         geo_locations: geo,
         age_min: s.ageMin ?? 18,
         age_max: s.ageMax ?? 65,
         genders: s.gender === 'women' ? [2] : s.gender === 'men' ? [1] : undefined,
         publisher_platforms: s.placements ?? ['facebook', 'instagram'],
+        targeting_automation: { advantage_audience: 0 },
       },
       status: 'PAUSED',
     },
-    ad: {
-      name: `${req.name} – ad`,
-      status: 'PAUSED',
-      creative: {
-        primary_text: s.primaryText,
-        headline: s.headline,
-        destination: req.objective === 'whatsapp' ? { whatsapp: s.whatsapp } : { link: s.url },
+    creative: {
+      name: `${req.name} – creative`,
+      object_story_spec: {
+        page_id: ctx.pageId ?? '<Testing Page ID>',
+        link_data: req.objective === 'whatsapp' ? undefined : {
+          link,
+          message: s.primaryText,
+          name: s.headline || undefined,
+          picture: s.imageUrl || undefined,
+          call_to_action: { type: req.objective === 'sales' ? 'SHOP_NOW' : 'LEARN_MORE', value: { link } },
+        },
       },
+      whatsapp: req.objective === 'whatsapp' ? s.whatsapp : undefined,
     },
-  };
+    ad: { name: `${req.name} – ad`, status: 'PAUSED' },
+  });
 }
 
 // Simulated Meta API: same steps and ids shape, with a short delay. Never touches Meta.
@@ -91,6 +105,9 @@ export function validate(req) {
       const u = new URL(s.url);
       if (!/^https?:$/.test(u.protocol)) throw new Error();
     } catch { e.url = 'Enter the full web address, starting with https://'; }
+  }
+  if (s.imageUrl) {
+    try { if (!/^https:$/.test(new URL(s.imageUrl).protocol)) throw new Error(); } catch { e.imageUrl = 'Image link must start with https://'; }
   }
   return e;
 }

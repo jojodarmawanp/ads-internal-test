@@ -1,4 +1,4 @@
-import { previewMode, currentUser, sendLoginLink, signOut, onAuthChange, loadData, setBrandIndustry, listRequests, saveRequest, deleteRequest } from './data.js';
+import { previewMode, currentUser, sendLoginLink, signOut, onAuthChange, loadData, setBrandIndustry, listRequests, saveRequest, deleteRequest, publishLive } from './data.js';
 import { renderPlan } from './plan.js';
 import { renderCreate, setCreatePrefill } from './create.js';
 import { renderStackedBars } from './chart.js';
@@ -188,7 +188,7 @@ function render() {
       });
     } else {
       document.title = 'Create campaign · Ads overview';
-      renderCreate($('view-create'), { agencyId: state.data.agencyId, brands, listRequests, saveRequest, deleteRequest, previewMode });
+      renderCreate($('view-create'), { agencyId: state.data.agencyId, brands, listRequests, saveRequest, deleteRequest, publishLive, previewMode });
     }
     return;
   }

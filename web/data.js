@@ -153,6 +153,20 @@ export async function deleteRequest(id) {
   if (error) throw new Error(friendly(error));
 }
 
+// Real publishing: the server (Cloudflare Worker) creates the campaign on Meta as PAUSED.
+export async function publishLive(requestId) {
+  const { data } = await (await supabase()).auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Please log in again.');
+  const res = await fetch('/api/publish', {
+    method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify({ request_id: requestId }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? `Publishing failed (${res.status}).`);
+  return body;
+}
+
 function friendly(error) {
   if (/row-level security/i.test(error.message)) return 'You do not have permission to change this. Make sure you are a member of this agency.';
   return error.message;

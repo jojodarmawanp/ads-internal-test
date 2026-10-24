@@ -321,3 +321,10 @@ dialog.review pre { max-height: 260px; overflow: auto; background: var(--page); 
 .flash { margin: 0 0 16px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--good-ink); color: var(--good-ink); background: var(--surface); font-weight: 600; font-size: 14px; }
 .plan-grid > *, .create-grid > * { min-width: 0; }
 .plan-results .table-wrap { margin: 0 -4px; }
+.mode { margin-top: 4px; }
+.mode .goal { margin-bottom: 8px; }
+.goal.disabled { opacity: .55; cursor: not-allowed; }
+.table-wrap.created .cmp-name { min-width: 200px; white-space: normal; }
+.table-wrap.created td { white-space: normal; }
+.table-wrap.created td:nth-child(4), .table-wrap.created td:nth-child(5) { white-space: nowrap; }
+.err.small { font-size: 12px; margin-top: 2px; }
